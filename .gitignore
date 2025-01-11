@@ -1,3 +1,8 @@
 checkpoint
 *.npy
 *.log
+data/FBV2
+models/
+old_models/
+**__pycache__/
+models/RotatE_FB15k_0

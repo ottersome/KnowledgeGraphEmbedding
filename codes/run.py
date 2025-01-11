@@ -21,6 +21,7 @@ from data_utils import compute_entities_and_rel_dict
 
 from dataloader import TrainDataset
 from dataloader import BidirectionalOneShotIterator
+from data_utils import read_triple
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser(
@@ -118,20 +119,6 @@ def save_model(model, optimizer, save_variable_list, args):
         relation_embedding
     )
 
-def read_triple(file_path, entity2id, relation2id):
-    '''
-    Read triples and map them into ids.
-    '''
-    triples = []
-    with open(file_path) as fin:
-        for line in fin:
-            h, r, t = line.strip().split('\t')
-            triples.append((entity2id[h], relation2id[r], entity2id[t]))
-            # try: 
-            #     triples.append((entity2id[h], relation2id[r], entity2id[t]))
-            # except KeyError:
-            #     pdb.set_trace()
-    return triples
 
 def set_logger(args):
     '''

@@ -17,6 +17,8 @@ from sklearn.metrics import average_precision_score
 from torch.utils.data import DataLoader
 
 from dataloader import TestDataset
+import numpy as np
+from tqdm import tqdm
 
 class KGEModel(nn.Module):
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma, 
@@ -67,6 +69,13 @@ class KGEModel(nn.Module):
 
         if model_name == 'ComplEx' and (not double_entity_embedding or not double_relation_embedding):
             raise ValueError('ComplEx should use --double_entity_embedding and --double_relation_embedding')
+
+    def load_embeddings(self, entity_embedding: np.ndarray, relation_embedding: np.ndarray):
+        '''
+        Load the entity and relation embeddings from the given paths.
+        '''
+        self.entity_embedding.weight = torch.from_numpy(entity_embedding)
+        self.relation_embedding.weight = torch.from_numpy(relation_embedding)
         
     def forward(self, sample, mode='single'):
         '''
@@ -309,6 +318,7 @@ class KGEModel(nn.Module):
         }
 
         return log
+
     
     @staticmethod
     def test_step(model, test_triples, all_true_triples, args):
@@ -426,3 +436,136 @@ class KGEModel(nn.Module):
                 metrics[metric] = sum([log[metric] for log in logs])/len(logs)
 
         return metrics
+
+def test_step_explicitArgs(
+    model,
+    test_triples,
+    all_true_triples,
+    countries: bool,
+    regions: list,
+    cuda: bool,
+    cpu_num: int,
+    test_batch_size: int,
+    nentity: int,
+    nrelation: int,
+    test_log_steps: int,
+    logger: logging.Logger,
+):
+    """
+    Evaluate the model on test or valid datasets
+    """
+    
+    model.eval()
+    
+    if countries:
+        #Countries S* datasets are evaluated on AUC-PR
+        #Process test data for AUC-PR evaluation
+        sample = list()
+        y_true  = list()
+        for head, relation, tail in test_triples:
+            for candidate_region in regions:
+                y_true.append(1 if candidate_region == tail else 0)
+                sample.append((head, relation, candidate_region))
+
+        sample = torch.LongTensor(sample)
+        if cuda:
+            sample = sample.cuda()
+
+        with torch.no_grad():
+            y_score = model(sample).squeeze(1).cpu().numpy()
+
+        y_true = np.array(y_true)
+
+        #average_precision_score is the same as auc_pr
+        auc_pr = average_precision_score(y_true, y_score)
+
+        metrics = {'auc_pr': auc_pr}
+        
+    else:
+        logger.info("Using standard (filtered) MRR, MR, HITS@1, HITS@3, and HITS@10 metrics")
+        #Otherwise use standard (filtered) MRR, MR, HITS@1, HITS@3, and HITS@10 metrics
+        #Prepare dataloader for evaluation
+        test_dataloader_head = DataLoader(
+            TestDataset(
+                test_triples, 
+                all_true_triples, 
+                nentity, 
+                nrelation, 
+                'head-batch'
+            ), 
+            batch_size=test_batch_size,
+            num_workers=max(1, cpu_num//2), 
+            collate_fn=TestDataset.collate_fn
+        )
+
+        test_dataloader_tail = DataLoader(
+            TestDataset(
+                test_triples, 
+                all_true_triples, 
+                nentity, 
+                nrelation, 
+                'tail-batch'
+            ), 
+            batch_size=test_batch_size,
+            num_workers=max(1, cpu_num//2), 
+            collate_fn=TestDataset.collate_fn
+        )
+        logger.info(f"Test dataloaders created")
+        
+        test_dataset_list = [test_dataloader_head, test_dataloader_tail]
+        
+        logs = []
+
+        step = 0
+        total_steps = sum([len(dataset) for dataset in test_dataset_list])
+
+        logger.info(f"Total steps to evaluate {total_steps}")
+        with torch.no_grad():
+            amnt_of_datasets = len(test_dataset_list)
+            for test_dataset in tqdm(test_dataset_list, total=amnt_of_datasets, desc="Evaluating datasets"):
+                for positive_sample, negative_sample, filter_bias, mode in tqdm(test_dataset, total=len(test_dataset), desc="Evaluating triples in dataset", leave=False):
+                    if cuda:
+                        positive_sample = positive_sample.cuda()
+                        negative_sample = negative_sample.cuda()
+                        filter_bias = filter_bias.cuda()
+
+                    batch_size = positive_sample.size(0)
+
+                    score = model((positive_sample, negative_sample), mode)
+                    score += filter_bias
+
+                    #Explicitly sort all the entities to ensure that there is no test exposure bias
+                    argsort = torch.argsort(score, dim = 1, descending=True)
+
+                    if mode == 'head-batch':
+                        positive_arg = positive_sample[:, 0]
+                    elif mode == 'tail-batch':
+                        positive_arg = positive_sample[:, 2]
+                    else:
+                        raise ValueError('mode %s not supported' % mode)
+
+                    for i in range(batch_size):
+                        #Notice that argsort is not ranking
+                        ranking = (argsort[i, :] == positive_arg[i]).nonzero()
+                        assert ranking.size(0) == 1
+
+                        #ranking + 1 is the true ranking used in evaluation metrics
+                        ranking = 1 + ranking.item()
+                        logs.append({
+                            'MRR': 1.0/ranking,
+                            'MR': float(ranking),
+                            'HITS@1': 1.0 if ranking <= 1 else 0.0,
+                            'HITS@3': 1.0 if ranking <= 3 else 0.0,
+                            'HITS@10': 1.0 if ranking <= 10 else 0.0,
+                        })
+
+                    if step % test_log_steps == 0:
+                        logging.info('Evaluating the model... (%d/%d)' % (step, total_steps))
+
+                    step += 1
+
+        metrics = {}
+        for metric in logs[0].keys():
+            metrics[metric] = sum([log[metric] for log in logs])/len(logs)
+
+    return metrics
