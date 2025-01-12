@@ -10,7 +10,10 @@ import numpy as np
 from model import KGEModel, test_step_explicitArgs
 from mods.logging import setup_logger
 
-from data_utils import get_triplets, read_triple
+from data_utils import get_triplets
+import matplotlib.pyplot as plt
+import torch
+import wandb
 
 
 def argsies() -> argparse.Namespace:
@@ -18,6 +21,7 @@ def argsies() -> argparse.Namespace:
     ap.add_argument("--models_path_regex", default="../models/RotatE_FB15k_[0-9][0-9]*")
     ap.add_argument("--data_path", default="../data/FB15k")
     ap.add_argument("--device", default="cuda:0")
+    ap.add_argument("--metrics_path", default="../metrics")
 
     args = ap.parse_args()
 
@@ -55,6 +59,13 @@ def load_model(trained_model_path: str, device: str) -> Tuple[KGEModel, Dict] :
 def main(args: argparse.Namespace):
     global logger
 
+    # Check if our working directory is repo/codes, if not warn and exit
+    current_dir = os.getcwd()
+    parent_dir = os.path.basename(current_dir)
+    if parent_dir != "codes":
+        logger.warning(f"You are not in the codes directory, but rather in {os.getcwd()} with parent dir {parent_dir}. Exiting...")
+        exit(1)
+
     logger.info("Starting the evaluation of these things")
 
     # Get all directories matching the regex pattern
@@ -66,6 +77,13 @@ def main(args: argparse.Namespace):
     test_triples = get_triplets(args.data_path, "test.txt")
 
     all_true_triples = train_triples + valid_triples + test_triples
+
+    ########################################
+    # Ensure we can dump metrics to disk
+    ########################################
+    os.makedirs(args.metrics_path, exist_ok=True)
+
+    overall_metrics: Dict[str, Dict[str, float]] = {}
 
     for path in sorted_paths:
         logger.info(f"Evaluating {path}")
@@ -87,6 +105,44 @@ def main(args: argparse.Namespace):
             logger
         )
 
+        path_basename = os.path.basename(path)
+        overall_metrics[path_basename] = metrics
+
+    # Dump metrics to disk
+    with open(os.path.join(args.metrics_path, "raw_metrics.json"), "w") as fout:
+        json.dump(overall_metrics, fout)
+
+    # Now we can compute call the graphing
+    graph_metrics(overall_metrics, args.metrics_path)
+
+def graph_metrics(metrics: Dict[str, Dict[str, float]], figure_save_path: str):
+    """
+    Will graph bar plots for each of the metrics:
+        MRR, MR, HITS@1, HITS@3, HITS@10
+        Which are the first key in the metrics dictionary
+    """
+
+    # Invert order of keys, first will be metric, second will be model
+    metric_keys = list(metrics.values())[0].keys()
+    new_metrics: Dict[str, Dict[str, float]] = {}
+
+    for metric_key in metric_keys:
+        new_metrics[metric_key] = {}
+        for model, value in metrics.items():
+            new_metrics[metric_key][model] = value[metric_key]
+
+    # Create bar figure for each metric_key, each bar will be a model
+    for i, metric_key in enumerate(metric_keys):
+        plt.figure(i)
+        plt.bar(list(new_metrics[metric_key].keys()), list(new_metrics[metric_key].values()))
+        plt.title(metric_key)
+        plt.xlabel("Model")
+        plt.ylabel(metric_key)
+        plt.xticks(rotation=90)
+        save_path = os.path.join(figure_save_path, f"{metric_key}.png")
+        plt.savefig(save_path)
+        plt.close()
+        logger.info(f"Saved graph to {figure_save_path}")
 
 
 

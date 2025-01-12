@@ -1,0 +1,42 @@
+{
+  "os":  "Linux-6.12.9-arch1-1-g14-x86_64-with-glibc2.41",
+  "python":  "CPython 3.10.16",
+  "startedAt":  "2025-02-28T15:24:38.469123Z",
+  "program":  "/home/ottersome/projects/llmbi/references/KnowledgeGraphEmbedding/codes/power_evaluation.py",
+  "codePath":  "codes/power_evaluation.py",
+  "git":  {
+    "remote":  "git@github.com:ottersome/KnowledgeGraphEmbedding.git",
+    "commit":  "b1a027cce6c1abeff7acf082d29305cfa3393160"
+  },
+  "email":  "luisgarcia26284@gmail.com",
+  "root":  "/home/ottersome/projects/llmbi/references/KnowledgeGraphEmbedding/codes",
+  "host":  "trashmobile",
+  "executable":  "/home/ottersome/.cache/pypoetry/virtualenvs/multihopkg-JRObReOi-py3.10/bin/python",
+  "codePathLocal":  "power_evaluation.py",
+  "cpu_count":  12,
+  "cpu_count_logical":  24,
+  "gpu":  "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "105089261568",
+      "used":  "78136270848"
+    }
+  },
+  "memory":  {
+    "total":  "29014618112"
+  },
+  "cpu":  {
+    "count":  12,
+    "countLogical":  24
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA GeForce RTX 4060 Laptop GPU",
+      "memoryTotal":  "8585740288",
+      "cudaCores":  3072,
+      "architecture":  "Ada"
+    }
+  ],
+  "cudaVersion":  "12.8"
+}
