@@ -38,6 +38,7 @@ def setup_logger(
 
     # logger_name = "SUPADEBUG"
     logger = logging.getLogger(logger_name_local)
+    logger.handlers.clear()
     logger.setLevel(logging.DEBUG)
     logger.propagate = False
 

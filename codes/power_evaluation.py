@@ -13,8 +13,8 @@ from mods.logging import setup_logger
 import debugpy
 from data_utils import get_triplets
 import matplotlib.pyplot as plt
-import torch
 import wandb
+import torch
 
 
 def argsies() -> argparse.Namespace:
@@ -54,6 +54,10 @@ def load_model(trained_model_path: str, device: str) -> Tuple[KGEModel, Dict]:
         double_relation_embedding=config["double_relation_embedding"],
     )
 
+    # Now we load the checkpointn
+    print("Checking : " + trained_model_path)
+    checkpoint = torch.load(os.path.join(trained_model_path , "checkpoint"))
+
     entity_embeddings = np.load(
         os.path.join(trained_model_path, "entity_embedding.npy")
     )
@@ -62,7 +66,12 @@ def load_model(trained_model_path: str, device: str) -> Tuple[KGEModel, Dict]:
     )
     kge_model.load_embeddings(entity_embeddings, relation_embeddings)
 
+    # Load the state dict
+    kge_model.load_state_dict(checkpoint["model_state_dict"])
     kge_model.to(device)
+
+    # Restore other saved variables (for reference I guess)
+    save_variables = {k: v for k,v in checkpoint.items() if k not in ["model_state_dict", "optimizer_state_dict"]}
 
     logger.info(f"Model loaded to {device}")
 
@@ -99,9 +108,6 @@ def main(args: argparse.Namespace):
     os.makedirs(args.metrics_path, exist_ok=True)
 
     overall_metrics: Dict[str, Dict[str, float]] = {}
-
-    # DEBUG: Remove this later this is just me trying to favor a particular model
-    sorted_paths = ["../models/RotatE_FB15k_0"]
 
     sorted_paths_str = "\n\t-".join(sorted_paths)
     logger.info(f"Will evaluate the follwing paths: \n\t-{sorted_paths_str}")
