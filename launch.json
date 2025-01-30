@@ -1,0 +1,19 @@
+{
+  "configurations" :[
+    {
+      "name": "Remote, Lab",
+      "type": "python",
+      "host": "127.0.0.1",
+      "request": "attach",
+      "port": 42020,
+      "subProcess": true,
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "/home/ottersome/projects/llmbi/references/KnowledgeGraphEmbedding/"
+        }
+      ]
+    }
+  ]
+}
+
