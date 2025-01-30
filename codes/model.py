@@ -74,8 +74,8 @@ class KGEModel(nn.Module):
         '''
         Load the entity and relation embeddings from the given paths.
         '''
-        self.entity_embedding.weight = torch.from_numpy(entity_embedding)
-        self.relation_embedding.weight = torch.from_numpy(relation_embedding)
+        self.entity_embedding.data = torch.from_numpy(entity_embedding)
+        self.relation_embedding.data = torch.from_numpy(relation_embedding)
         
     def forward(self, sample, mode='single'):
         '''
@@ -551,14 +551,17 @@ def test_step_explicitArgs(
 
                         #ranking + 1 is the true ranking used in evaluation metrics
                         ranking = 1 + ranking.item()
-                        logsin
-                        logs.append({
+                        metrics = {
                             'MRR': 1.0/ranking,
                             'MR': float(ranking),
                             'HITS@1': 1.0 if ranking <= 1 else 0.0,
                             'HITS@3': 1.0 if ranking <= 3 else 0.0,
                             'HITS@10': 1.0 if ranking <= 10 else 0.0,
-                        })
+                        }
+                        logs.append(metrics)
+                        metrics_str = "\n\t- ".join(
+                            [f"{k}: {v}" for k, v in metrics.items()]
+                        )
 
                     if step % test_log_steps == 0:
                         logging.info('Evaluating the model... (%d/%d)' % (step, total_steps))
