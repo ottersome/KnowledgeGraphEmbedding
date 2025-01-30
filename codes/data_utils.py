@@ -37,7 +37,7 @@ def read_triple(file_path, entity2id, relation2id) -> List[Tuple[int, int, int]]
             triples.append((entity2id[h], relation2id[r], entity2id[t]))
     return triples
 
-def get_triplets(data_path: str, triple_filename: str = "test.txt"):
+def get_triplets(data_path: str, triple_filename: str):
     # Tokens Path
     entities_path = os.path.join(data_path, 'entities.dict')
     relations_path = os.path.join(data_path, 'relations.dict')

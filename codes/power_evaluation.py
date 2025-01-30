@@ -10,6 +10,7 @@ import numpy as np
 from model import KGEModel, test_step_explicitArgs
 from mods.logging import setup_logger
 
+import debugpy
 from data_utils import get_triplets
 import matplotlib.pyplot as plt
 import torch
@@ -23,14 +24,22 @@ def argsies() -> argparse.Namespace:
     ap.add_argument("--device", default="cuda:0")
     ap.add_argument("--metrics_path", default="../metrics")
 
+    ap.add_argument(
+        "--debug",
+        "-d",
+        action="store_true",
+        help="Whether or not to use debugpy attachment.",
+    )
+    ap.add_argument(
+        "--dport", "-p", default=42020, type=int, help="The port to attach debugpy to."
+    )
+
     args = ap.parse_args()
 
     return args
 
 
-
-
-def load_model(trained_model_path: str, device: str) -> Tuple[KGEModel, Dict] :
+def load_model(trained_model_path: str, device: str) -> Tuple[KGEModel, Dict]:
     logger.info(f"Loading model from {trained_model_path}")
     config_path = os.path.join(trained_model_path, "config.json")
     config = json.load(open(config_path))
@@ -42,12 +51,15 @@ def load_model(trained_model_path: str, device: str) -> Tuple[KGEModel, Dict] :
         hidden_dim=config["hidden_dim"],
         gamma=config["gamma"],
         double_entity_embedding=config["double_entity_embedding"],
-        double_relation_embedding=config["double_relation_embedding"]
+        double_relation_embedding=config["double_relation_embedding"],
     )
 
-
-    entity_embeddings = np.load(os.path.join(trained_model_path, "entity_embedding.npy"))
-    relation_embeddings = np.load(os.path.join(trained_model_path, "relation_embedding.npy"))
+    entity_embeddings = np.load(
+        os.path.join(trained_model_path, "entity_embedding.npy")
+    )
+    relation_embeddings = np.load(
+        os.path.join(trained_model_path, "relation_embedding.npy")
+    )
     kge_model.load_embeddings(entity_embeddings, relation_embeddings)
 
     kge_model.to(device)
@@ -56,6 +68,7 @@ def load_model(trained_model_path: str, device: str) -> Tuple[KGEModel, Dict] :
 
     return kge_model, config
 
+
 def main(args: argparse.Namespace):
     global logger
 
@@ -63,14 +76,16 @@ def main(args: argparse.Namespace):
     current_dir = os.getcwd()
     parent_dir = os.path.basename(current_dir)
     if parent_dir != "codes":
-        logger.warning(f"You are not in the codes directory, but rather in {os.getcwd()} with parent dir {parent_dir}. Exiting...")
+        logger.warning(
+            f"You are not in the codes directory, but rather in {os.getcwd()} with parent dir {parent_dir}. Exiting..."
+        )
         exit(1)
 
     logger.info("Starting the evaluation of these things")
 
     # Get all directories matching the regex pattern
     directories = glob.glob(args.models_path_regex)
-    sorted_paths = sorted(directories, key=lambda x: int(re.search(r'\d+$', x).group())) # type: ignore
+    sorted_paths = sorted(directories, key=lambda x: int(re.search(r"\d+$", x).group()))  # type: ignore
 
     train_triples = get_triplets(args.data_path, "train.txt")
     valid_triples = get_triplets(args.data_path, "valid.txt")
@@ -84,6 +99,12 @@ def main(args: argparse.Namespace):
     os.makedirs(args.metrics_path, exist_ok=True)
 
     overall_metrics: Dict[str, Dict[str, float]] = {}
+
+    # DEBUG: Remove this later this is just me trying to favor a particular model
+    sorted_paths = ["../models/RotatE_FB15k_0"]
+
+    sorted_paths_str = "\n\t-".join(sorted_paths)
+    logger.info(f"Will evaluate the follwing paths: \n\t-{sorted_paths_str}")
 
     for path in sorted_paths:
         logger.info(f"Evaluating {path}")
@@ -102,7 +123,7 @@ def main(args: argparse.Namespace):
             model_config["nentity"],
             model_config["nrelation"],
             model_config["test_log_steps"],
-            logger
+            logger,
         )
 
         path_basename = os.path.basename(path)
@@ -114,6 +135,7 @@ def main(args: argparse.Namespace):
 
     # Now we can compute call the graphing
     graph_metrics(overall_metrics, args.metrics_path)
+
 
 def graph_metrics(metrics: Dict[str, Dict[str, float]], figure_save_path: str):
     """
@@ -134,7 +156,9 @@ def graph_metrics(metrics: Dict[str, Dict[str, float]], figure_save_path: str):
     # Create bar figure for each metric_key, each bar will be a model
     for i, metric_key in enumerate(metric_keys):
         plt.figure(i)
-        plt.bar(list(new_metrics[metric_key].keys()), list(new_metrics[metric_key].values()))
+        plt.bar(
+            list(new_metrics[metric_key].keys()), list(new_metrics[metric_key].values())
+        )
         plt.title(metric_key)
         plt.xlabel("Model")
         plt.ylabel(metric_key)
@@ -145,9 +169,15 @@ def graph_metrics(metrics: Dict[str, Dict[str, float]], figure_save_path: str):
         logger.info(f"Saved graph to {figure_save_path}")
 
 
-
-
 if __name__ == "__main__":
     args = argsies()
     logger = setup_logger("__MAIN__")
+
+    # Add debugpy
+    if args.debug:
+        logger.info("Attaching debugpy to port %d" % args.dport)
+        debugpy.listen(args.dport)
+        debugpy.wait_for_client()
+        logger.info("Debugpy attached")
+
     main(args)

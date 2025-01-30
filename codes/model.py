@@ -222,7 +222,7 @@ class KGEModel(nn.Module):
         if mode == 'head-batch':
             re_score = re_relation * re_tail + im_relation * im_tail
             im_score = re_relation * im_tail - im_relation * re_tail
-            re_score = re_score - re_head
+            re_score = re_score - re_head # Brodcasting is expected here. 
             im_score = im_score - im_head
         else:
             re_score = re_head * re_relation - im_head * im_relation
@@ -523,7 +523,7 @@ def test_step_explicitArgs(
         with torch.no_grad():
             amnt_of_datasets = len(test_dataset_list)
             for test_dataset in tqdm(test_dataset_list, total=amnt_of_datasets, desc="Evaluating datasets"):
-                for positive_sample, negative_sample, filter_bias, mode in tqdm(test_dataset, total=len(test_dataset), desc="Evaluating triples in dataset", leave=False):
+                for positive_sample, negative_sample, filter_bias, mode in tqdm(test_dataset, total=len(test_dataset), desc="Evaluating dataset", leave=False):
                     if cuda:
                         positive_sample = positive_sample.cuda()
                         negative_sample = negative_sample.cuda()
@@ -551,6 +551,7 @@ def test_step_explicitArgs(
 
                         #ranking + 1 is the true ranking used in evaluation metrics
                         ranking = 1 + ranking.item()
+                        logsin
                         logs.append({
                             'MRR': 1.0/ranking,
                             'MR': float(ranking),

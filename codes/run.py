@@ -10,6 +10,7 @@ import logging
 import os
 import random
 import pdb
+import debugpy
 
 import numpy as np
 import torch
@@ -70,6 +71,9 @@ def parse_args(args=None):
     
     parser.add_argument('--nentity', type=int, default=0, help='DO NOT MANUALLY SET')
     parser.add_argument('--nrelation', type=int, default=0, help='DO NOT MANUALLY SET')
+
+    parser.add_argument('--debug', action="store_true")
+    parser.add_argument('--dport', type=int, default=42020)
     
     return parser.parse_args(args)
 
@@ -169,6 +173,12 @@ def main(args):
     # Write logs to checkpoint and console
     set_logger(args)
 
+    # Add debugpy
+    if args.debug:
+        logging.info("Attaching debugpy to port %d" % args.dport)
+        debugpy.listen(args.dport)
+        debugpy.wait_for_client()
+        logging.info("Debugpy attached")
     # Tokens Path
     entities_path = os.path.join(args.data_path, 'entities.dict')
     relations_path = os.path.join(args.data_path, 'relations.dict')
