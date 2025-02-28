@@ -34,6 +34,13 @@ def argsies() -> argparse.Namespace:
         "--dport", "-p", default=42020, type=int, help="The port to attach debugpy to."
     )
 
+    # Wandb arguments
+    ap.add_argument("--wandb", "-w", action="store_true")
+    ap.add_argument("--wandb_project", default="RotatE", type=str)
+    ap.add_argument("--wandb_name", default="rotate", type=str) 
+    ap.add_argument("--wandb_tags", default="FB15k", type=str)
+    ap.add_argument("--wand_notes", default="Baseline. No norming", type=str)
+
     args = ap.parse_args()
 
     return args
@@ -161,7 +168,8 @@ def graph_metrics(metrics: Dict[str, Dict[str, float]], figure_save_path: str):
 
     # Create bar figure for each metric_key, each bar will be a model
     for i, metric_key in enumerate(metric_keys):
-        plt.figure(i)
+        plt.figure(i, figsize=(10, 10))
+        plt.tight_layout()
         plt.bar(
             list(new_metrics[metric_key].keys()), list(new_metrics[metric_key].values())
         )
@@ -174,10 +182,35 @@ def graph_metrics(metrics: Dict[str, Dict[str, float]], figure_save_path: str):
         plt.close()
         logger.info(f"Saved graph to {figure_save_path}")
 
+        # Upload it to wandb
+        if args.wandb:
+            wandb.log({
+                f"{metric_key}": wandb.plot.bar(
+                    wandb.Table(
+                        data=[[k, v] for k, v in new_metrics[metric_key].items()],
+                        columns=["Model", metric_key]
+                    ),
+                    "Model",
+                    metric_key,
+                    title=metric_key
+                )
+            })
+
 
 if __name__ == "__main__":
     args = argsies()
     logger = setup_logger("__MAIN__")
+
+    if args.wandb:
+        wandb_run = wandb.init(
+            project=args.wandb_project,
+            name=args.wandb_name,
+            notes=args.wand_notes,
+        )
+        # Log some random stuff to test wandb.log function:
+        save_path = "../metrics/MR.png"
+        wandb.log({f"hallo": wandb.Image(save_path)})
+
 
     # Add debugpy
     if args.debug:
