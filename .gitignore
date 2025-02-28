@@ -6,3 +6,7 @@ models/
 old_models/
 **__pycache__/
 models/RotatE_FB15k_0
+figures
+metrics
+codes/wandb
+metrics
