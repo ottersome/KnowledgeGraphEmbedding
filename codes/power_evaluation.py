@@ -41,12 +41,14 @@ def argsies() -> argparse.Namespace:
     ap.add_argument("--wandb_tags", default="FB15k", type=str)
     ap.add_argument("--wand_notes", default="Baseline. No norming", type=str)
 
+    ap.add_argument("--normalize", "-n", action="store_true")
+
     args = ap.parse_args()
 
     return args
 
 
-def load_model(trained_model_path: str, device: str) -> Tuple[KGEModel, Dict]:
+def load_model(trained_model_path: str, device: str, normalize: bool) -> Tuple[KGEModel, Dict]:
     logger.info(f"Loading model from {trained_model_path}")
     config_path = os.path.join(trained_model_path, "config.json")
     config = json.load(open(config_path))
@@ -81,6 +83,10 @@ def load_model(trained_model_path: str, device: str) -> Tuple[KGEModel, Dict]:
     save_variables = {k: v for k,v in checkpoint.items() if k not in ["model_state_dict", "optimizer_state_dict"]}
 
     logger.info(f"Model loaded to {device}")
+
+    # If we wnat to normalize the embeddings, we do it here
+    if normalize:
+        kge_model.normalize_embeddings_nondiff()    
 
     return kge_model, config
 
@@ -121,7 +127,7 @@ def main(args: argparse.Namespace):
 
     for path in sorted_paths:
         logger.info(f"Evaluating {path}")
-        kge_model, model_config = load_model(path, args.device)
+        kge_model, model_config = load_model(path, args.device, args.normalize)
 
         logger.info(f"About to test model {path}")
         metrics = test_step_explicitArgs(
