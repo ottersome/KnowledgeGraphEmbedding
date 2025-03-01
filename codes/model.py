@@ -77,6 +77,19 @@ class KGEModel(nn.Module):
         self.entity_embedding.data = torch.from_numpy(entity_embedding)
         self.relation_embedding.data = torch.from_numpy(relation_embedding)
         
+    def normalize_embeddings_nondiff(self) -> None:
+        '''
+        Normalize the embeddings to unit length
+        '''
+        eps = 1e-8
+
+        # Calculate the abs() of the entity embedding
+        re_entity, im_entity = torch.chunk(self.entity_embedding, 2, dim=1)
+        entity_embedding_abs = torch.sqrt(re_entity**2 + im_entity**2)
+        normalized_real = re_entity / (entity_embedding_abs + eps)
+        normalized_im = im_entity / (entity_embedding_abs + eps)
+        self.entity_embedding = nn.Parameter(torch.cat([normalized_real, normalized_im], dim=1))
+
     def forward(self, sample, mode='single'):
         '''
         Forward function that calculate the score of a batch of triples.

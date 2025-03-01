@@ -83,6 +83,10 @@ def load_model(trained_model_path: str, device: str) -> Tuple[KGEModel, Dict]:
 
     logger.info(f"Model loaded to {device}")
 
+    # If we wnat to normalize the embeddings, we do it here
+    if normalize:
+        kge_model.normalize_embeddings_nondiff()    
+
     return kge_model, config
 
 
