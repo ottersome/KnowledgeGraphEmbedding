@@ -23,6 +23,7 @@ from data_utils import compute_entities_and_rel_dict
 from dataloader import TrainDataset
 from dataloader import BidirectionalOneShotIterator
 from data_utils import read_triple
+import wandb
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser(
@@ -74,6 +75,7 @@ def parse_args(args=None):
 
     parser.add_argument('--debug', action="store_true")
     parser.add_argument('--dport', type=int, default=42020)
+    parser.add_argument('--wandb', action="store_true")
     
     return parser.parse_args(args)
 
@@ -147,12 +149,17 @@ def set_logger(args):
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
-def log_metrics(mode, step, metrics):
+def log_metrics(mode, step, metrics, wandb: bool):
     '''
     Print the evaluation logs
     '''
     for metric in metrics:
         logging.info('%s %s at step %d: %f' % (mode, metric, step, metrics[metric]))
+
+    # Also send them to wandb   
+    if wandb_on:
+        for metric in metrics:        
+            wandb.log({f"{mode}/{metric}": metrics[metric]}, step=step)
         
         
 def main(args):
@@ -172,6 +179,12 @@ def main(args):
     
     # Write logs to checkpoint and console
     set_logger(args)
+
+    if args.wandb:
+        wandb_run = wandb.init(
+            project="rotatE",
+            name="rotate",
+        )
 
     # Add debugpy
     if args.debug:
@@ -350,13 +363,13 @@ def main(args):
                 metrics = {}
                 for metric in training_logs[0].keys():
                     metrics[metric] = sum([log[metric] for log in training_logs])/len(training_logs)
-                log_metrics('Training average', step, metrics)
+                log_metrics('Training average', step, metrics, args.wandb)
                 training_logs = []
                 
             if args.do_valid and step % args.valid_steps == 0:
                 logging.info('Evaluating on Valid Dataset...')
                 metrics = kge_model.test_step(kge_model, valid_triples, all_true_triples, args)
-                log_metrics('Valid', step, metrics)
+                log_metrics('Valid', step, metrics, args.wandb)
         
         save_variable_list = {
             'step': step, 
@@ -368,17 +381,17 @@ def main(args):
     if args.do_valid:
         logging.info('Evaluating on Valid Dataset...')
         metrics = kge_model.test_step(kge_model, valid_triples, all_true_triples, args)
-        log_metrics('Valid', step, metrics)
+        log_metrics('Valid', step, metrics, args.wandb)
     
     if args.do_test:
         logging.info('Evaluating on Test Dataset...')
         metrics = kge_model.test_step(kge_model, test_triples, all_true_triples, args)
-        log_metrics('Test', step, metrics)
+        log_metrics('Test', step, metrics, args.wandb)
     
     if args.evaluate_train:
         logging.info('Evaluating on Training Dataset...')
         metrics = kge_model.test_step(kge_model, train_triples, all_true_triples, args)
-        log_metrics('Test', step, metrics)
+        log_metrics('Test', step, metrics, args.wandb)
         
 if __name__ == '__main__':
     main(parse_args())
