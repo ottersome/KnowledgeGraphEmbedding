@@ -76,6 +76,10 @@ def parse_args(args=None):
     parser.add_argument('--debug', action="store_true")
     parser.add_argument('--dport', type=int, default=42020)
     parser.add_argument('--wandb', action="store_true")
+
+    # For Normalization
+    parser.add_argument('--differ_normalization', action="store_true")
+    parser.add_argument('--proj_normalization', action="store_true")
     
     return parser.parse_args(args)
 
@@ -149,7 +153,7 @@ def set_logger(args):
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
-def log_metrics(mode, step, metrics, wandb: bool):
+def log_metrics(mode, step, metrics, wandb_on: bool):
     '''
     Print the evaluation logs
     '''
@@ -260,6 +264,8 @@ def main(args):
         nrelation=nrelation,
         hidden_dim=args.hidden_dim,
         gamma=args.gamma,
+        differ_normalization=args.differ_normalization,
+        proj_normalization=args.proj_normalization,
         double_entity_embedding=args.double_entity_embedding,
         double_relation_embedding=args.double_relation_embedding
     )

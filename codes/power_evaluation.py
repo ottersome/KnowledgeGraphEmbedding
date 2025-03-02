@@ -59,6 +59,8 @@ def load_model(trained_model_path: str, device: str, normalize: bool) -> Tuple[K
         nrelation=config["nrelation"],
         hidden_dim=config["hidden_dim"],
         gamma=config["gamma"],
+        differ_normalization=False, # Only used in training
+        proj_normalization=False, # Only used in training
         double_entity_embedding=config["double_entity_embedding"],
         double_relation_embedding=config["double_relation_embedding"],
     )

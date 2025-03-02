@@ -21,7 +21,7 @@ import numpy as np
 from tqdm import tqdm
 
 class KGEModel(nn.Module):
-    def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma, 
+    def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma, differ_normalization: bool, proj_normalization: bool,
                  double_entity_embedding=False, double_relation_embedding=False):
         super(KGEModel, self).__init__()
         self.model_name = model_name
@@ -29,6 +29,8 @@ class KGEModel(nn.Module):
         self.nrelation = nrelation
         self.hidden_dim = hidden_dim
         self.epsilon = 2.0
+        self.differ_normalization: bool = differ_normalization
+        self.proj_normalization: bool = proj_normalization
         
         self.gamma = nn.Parameter(
             torch.Tensor([gamma]), 
@@ -168,6 +170,14 @@ class KGEModel(nn.Module):
             
         else:
             raise ValueError('mode %s not supported' % mode)
+
+        if self.differ_normalization:
+            head_rel, head_img = torch.chunk(head, 2, dim=-1)
+            tail_rel, tail_img = torch.chunk(tail, 2, dim=-1)
+            head_abs = torch.sqrt(head_rel**2 + head_img**2)
+            tail_abs = torch.sqrt(tail_rel**2 + tail_img**2)
+            head = head / head_abs.tile(1, 1, 2)
+            tail = tail / tail_abs.tile(1, 1, 2)
             
         model_func = {
             'TransE': self.TransE,
