@@ -331,6 +331,10 @@ class KGEModel(nn.Module):
             
         loss.backward()
 
+        if model.proj_normalization:
+            model.normalize_embeddings_nondiff() 
+
+
         optimizer.step()
 
         log = {
