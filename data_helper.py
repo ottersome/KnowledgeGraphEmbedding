@@ -112,8 +112,44 @@ def test_counting_index(entities_path: str, relations_path: str) -> None:
 
     return None
 
+def sort_lambda(x: str) -> int:
+    return int(x[1:])
+
+def create_entities_and_relations_dict(triplets_path: str) -> None:
+    print(f"Creating entities and relations dict from {triplets_path}")
+    triplets = open(triplets_path, "r").readlines()
+    entity_set = set()
+    relation_set = set()
+
+    base_dirname = os.path.dirname(triplets_path)
+
+    for triplet in triplets:
+        head, relation, tail = triplet.strip().split(None)
+        entity_set.add(head)
+        entity_set.add(tail)
+        relation_set.add(relation)
+
+    entities_save_path = os.path.join(base_dirname, "entities.dict")
+    relations_save_path = os.path.join(base_dirname, "relations.dict")
+
+    from tqdm import tqdm
+    
+    with open(entities_save_path, "w") as f:
+        for i, entity in tqdm(enumerate(sorted(entity_set, key=sort_lambda))):
+            f.write(f"{i}\t{entity}\n")
+    
+    with open(relations_save_path, "w") as f:
+        for i, relation in tqdm(enumerate(sorted(relation_set, key=sort_lambda))):
+            f.write(f"{i}\t{relation}\n")
+
+    return None
+    
+
 # Example usage
 if __name__ == "__main__":
+
+    # Create entities and relations dict
+    create_entities_and_relations_dict("./data/FBWikiV2/triplet_filt_fb_wiki_alt.txt") 
 
     # raw.kb
     # split_file("./raw.kb", ".")
@@ -128,7 +164,9 @@ if __name__ == "__main__":
     # )
 
     # Check for weird indexes
-    test_counting_index(
-        "./data/FB15k/entities.dict",
-        "./data/FB15k/relations.dict"
-    )
+    # test_counting_index(
+    #     "./data/FB15k/entities.dict",
+    #     "./data/FB15k/relations.dict"
+    # )
+
+
