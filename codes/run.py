@@ -187,7 +187,7 @@ def main(args):
     if args.wandb:
         wandb_run = wandb.init(
             project="rotatE",
-            name="rotate",
+            name="pRotatE-FBWikiV2",
         )
 
     # Add debugpy
